@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/astaxie/beego/logs"
 	_ "github.com/mattn/go-sqlite3"
+	"indeed_job_scraper_go/config"
 	"os"
 	"strings"
 	"sync"
@@ -34,15 +35,21 @@ func openDB(dbPath string) *sql.DB {
 	return db
 }
 
-func AddUrl(url string) bool {
+func ScrapedSave() {
+	// 爬过的项目要记录在数据库
+	for {
+		item := <-config.ScrapedChan
+		addUrl(item)
+	}
+}
+
+func addUrl(url string) bool {
 	stmt, err := DB.Prepare("INSERT INTO scraped(url) values(?)")
 	if err != nil {
 		logs.Error("Add url to sqlite3 faild: ", err)
 		return false
 	}
 	defer stmt.Close()
-	s.Lock()
-	defer s.Unlock()
 
 	result, err := stmt.Exec(url)
 

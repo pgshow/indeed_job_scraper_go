@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/xuri/excelize/v2"
+	"indeed_job_scraper_go/config"
 	"indeed_job_scraper_go/save"
 	"indeed_job_scraper_go/scrape"
 	"indeed_job_scraper_go/sqlite"
@@ -13,6 +14,7 @@ func main() {
 	sqlite.DbInit()
 
 	go save.Save()
+	go sqlite.ScrapedSave()
 
 	rows := excelData()
 
@@ -37,12 +39,12 @@ func main() {
 		fmt.Println(i, companyName, "scrape all the jobs")
 		scrape.GetJobs(companyName, jobKeyLocation)
 
-		sqlite.AddUrl(jobsPageUrl)
+		config.ScrapedChan <- jobsPageUrl
 	}
 }
 
 func excelData() (data [][]string) {
-	xlsx, err := excelize.OpenFile("./company with url.xlsx")
+	xlsx, err := excelize.OpenFile("./CompanyURLSendback.xlsx")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

@@ -6,6 +6,7 @@ import (
 	"github.com/panjf2000/ants"
 	"github.com/tidwall/gjson"
 	"html"
+	"indeed_job_scraper_go/config"
 	"indeed_job_scraper_go/sqlite"
 	"indeed_job_scraper_go/util"
 	"regexp"
@@ -42,7 +43,7 @@ var JobChan = make(chan JobInfo, 100) // 保存采集到的工作信息
 func GetJobs(companyName string, jobItems []JobItem) {
 	var wg sync.WaitGroup
 
-	p, _ := ants.NewPoolWithFunc(5, func(profile interface{}) {
+	p, _ := ants.NewPoolWithFunc(1, func(profile interface{}) {
 		getJob(profile)
 		wg.Done()
 	})
@@ -80,6 +81,10 @@ func getJob(profile interface{}) {
 		return
 	}
 
+	if htmlCode == "" {
+		fmt.Println("htmlCode is empty")
+	}
+
 	// 检查是否正确的json字符串
 	if !strings.Contains(htmlCode, `{"data":{"jobData"`) {
 		fmt.Println(p.i, p.jobKey, " json is not right")
@@ -108,7 +113,7 @@ func getJob(profile interface{}) {
 
 	JobChan <- jobInfo
 
-	sqlite.AddUrl(p.jobKey)
+	config.ScrapedChan <- p.jobKey
 }
 
 // 描述里面的 html 代码清洗，转移符清洗
@@ -169,7 +174,7 @@ func ExtractJobKey(html string) (jobItems []JobItem) {
 	}
 
 	//items := htmlquery.Find(doc, "//li[contains(@class, 'cmp-JobListItem')]")
-	items := htmlquery.Find(doc, `//li[@data-tn-component="JobListItem[]"]`)
+	items := htmlquery.Find(doc, `//ul[@class="cmp-JobList-jobList"]/li`)
 
 	if items == nil {
 		fmt.Println("cant find any job items")
@@ -180,7 +185,7 @@ func ExtractJobKey(html string) (jobItems []JobItem) {
 		jobKeyTmp := htmlquery.SelectAttr(row, "data-tn-entityid")
 		locationTmp := htmlquery.FindOne(row, `//div[@class='cmp-JobListItem-subtitle']`)
 
-		re := regexp.MustCompile(`0,([a-z0-9]+?),0`)
+		re := regexp.MustCompile(`0,([a-z0-9]+?),\d`)
 		match := re.FindStringSubmatch(jobKeyTmp)
 
 		if match == nil || locationTmp == nil {
@@ -192,6 +197,10 @@ func ExtractJobKey(html string) (jobItems []JobItem) {
 		jobItem := JobItem{location: location, jobKey: match[1]}
 
 		jobItems = append(jobItems, jobItem)
+	}
+
+	if len(jobItems) < 100 {
+		fmt.Println("only 99")
 	}
 
 	return
