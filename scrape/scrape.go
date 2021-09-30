@@ -5,6 +5,7 @@ import (
 	"github.com/antchfx/htmlquery"
 	"github.com/panjf2000/ants"
 	"github.com/tidwall/gjson"
+	"html"
 	"indeed_job_scraper_go/sqlite"
 	"indeed_job_scraper_go/util"
 	"regexp"
@@ -16,22 +17,22 @@ import (
 // 工作页面配置
 type JobItem struct {
 	location string
-	jobKey string
+	jobKey   string
 }
 
 // 工作页面配置
 type Profile struct {
-	i int
-	jobKey string
-	location string
+	i           int
+	jobKey      string
+	location    string
 	companyName string
 }
 
 // 工作信息
 type JobInfo struct {
 	CompanyName string
-	Title string
-	Location string
+	Title       string
+	Location    string
 	Description string
 }
 
@@ -51,10 +52,10 @@ func GetJobs(companyName string, jobItems []JobItem) {
 	for i, jobItem := range jobItems {
 		wg.Add(1)
 
-		profile := Profile {
+		profile := Profile{
 			i:           i,
 			companyName: companyName,
-			location: jobItem.location,
+			location:    jobItem.location,
 			jobKey:      jobItem.jobKey,
 		}
 		_ = p.Invoke(profile)
@@ -73,24 +74,24 @@ func getJob(profile interface{}) {
 		return
 	}
 
-	html, err := util.Post(p.i, p.jobKey)
+	htmlCode, err := util.Post(p.i, p.jobKey)
 	if err != nil {
 		fmt.Println(p.jobKey, err)
 		return
 	}
 
 	// 检查是否正确的json字符串
-	if !strings.Contains(html, `{"data":{"jobData"`) {
+	if !strings.Contains(htmlCode, `{"data":{"jobData"`) {
 		fmt.Println(p.i, p.jobKey, " json is not right")
 	}
 
 	// 获取json节点
-	tmp := gjson.Parse(html).Get("data").Get("jobData").Get("results.0").Get("job")
+	tmp := gjson.Parse(htmlCode).Get("data").Get("jobData").Get("results.0").Get("job")
 
 	// 获取国家，标题，和描述
 	country := tmp.Get("location").Get("countryCode").String()
 	title := tmp.Get("title").String()
-	description := tmp.Get("description").Get("html").String()
+	description := htmlClear(tmp.Get("description").Get("html").String())
 
 	fmt.Println("- extracted", title)
 
@@ -100,14 +101,23 @@ func getJob(profile interface{}) {
 
 	jobInfo := JobInfo{
 		CompanyName: p.companyName,
-		Title: title,
-		Location: p.location,
+		Title:       title,
+		Location:    p.location,
 		Description: description,
 	}
 
 	JobChan <- jobInfo
 
 	sqlite.AddUrl(p.jobKey)
+}
+
+// 描述里面的 html 代码清洗，转移符清洗
+func htmlClear(org string) (cleared string) {
+	//去除所有尖括号内的HTML代码，并换成换行符
+	re, _ := regexp.Compile("\\<[\\S\\s]+?\\>")
+	cleared = html.UnescapeString(re.ReplaceAllString(org, ""))
+
+	return
 }
 
 // 爬取该公司所有工作列表

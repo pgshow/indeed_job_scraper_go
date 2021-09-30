@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/Luxurioust/excelize"
+	"github.com/xuri/excelize/v2"
 	"indeed_job_scraper_go/save"
 	"indeed_job_scraper_go/scrape"
 	"indeed_job_scraper_go/sqlite"
