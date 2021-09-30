@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	_ "crypto/sha256"
 	"fmt"
 	"github.com/xuri/excelize/v2"
 	"indeed_job_scraper_go/config"
@@ -27,7 +29,10 @@ func main() {
 		companyName := row[0]
 		jobsPageUrl := row[3]
 
-		if sqlite.SelectUrl(jobsPageUrl) {
+		sum := sha256.Sum256([]byte(jobsPageUrl))
+		jobsPageUrlHash := fmt.Sprintf("%x", sum)
+
+		if sqlite.SelectUrl(jobsPageUrlHash) {
 			fmt.Println(companyName, jobsPageUrl, "already scraped")
 			continue
 		}
@@ -39,7 +44,7 @@ func main() {
 		fmt.Println(i, companyName, "scrape all the jobs")
 		scrape.GetJobs(companyName, jobKeyLocation)
 
-		config.ScrapedChan <- jobsPageUrl
+		config.ScrapedChan <- jobsPageUrlHash
 	}
 }
 
