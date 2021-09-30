@@ -68,6 +68,14 @@ func GetJobs(companyName string, jobItems []JobItem) {
 
 // 爬取，提取某工作信息，发送到列队
 func getJob(profile interface{}) {
+	defer func() {
+		if err := recover(); err != nil {
+			// 打印异常，关闭资源，退出此函数
+			fmt.Println("err >>>>>>>>>> ", err)
+			return
+		}
+	}()
+
 	p := profile.(Profile)
 
 	if sqlite.SelectUrl(p.jobKey) {
@@ -130,19 +138,22 @@ func GetListPages(url string) (jobItems []JobItem) {
 scrapeStart:
 	fmt.Println("scrape url:" + url)
 
-	html, err := util.Fetch(url)
+	htmlCode, err := util.Fetch(url)
 	if err != nil {
 		fmt.Println(url, err)
 		return
 	}
+	if htmlCode == "" {
+		fmt.Println("htmlCode is empty")
+	}
 
-	newJobItems := ExtractJobKey(html)
+	newJobItems := ExtractJobKey(htmlCode)
 
 	fmt.Println("find jobKey item numbers: ", len(newJobItems))
 
 	jobItems = append(jobItems, newJobItems...)
 
-	nextPage := extractNext(html)
+	nextPage := extractNext(htmlCode)
 	if nextPage != "" {
 		url = "https://www.indeed.com" + nextPage
 		time.Sleep(1 * time.Second)
