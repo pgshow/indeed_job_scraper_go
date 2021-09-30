@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"time"
 )
 
 // 工作页面配置
@@ -135,6 +134,7 @@ func htmlClear(org string) (cleared string) {
 
 // 爬取该公司所有工作列表
 func GetListPages(url string) (jobItems []JobItem) {
+	//url = "https://www.indeed.com/cmp/Bristol-Myers-Squibb/jobs"
 scrapeStart:
 	fmt.Println("scrape url:" + url)
 
@@ -156,10 +156,30 @@ scrapeStart:
 	nextPage := extractNext(htmlCode)
 	if nextPage != "" {
 		url = "https://www.indeed.com" + nextPage
-		time.Sleep(1 * time.Second)
+		//time.Sleep(1 * time.Second)
 		goto scrapeStart
 	}
 
+	pUniqueItems := new([]JobItem)
+
+	removeDuplicate(jobItems, pUniqueItems)
+
+	return *pUniqueItems
+}
+
+func removeDuplicate(personList []JobItem, pUniqueItems *[]JobItem) {
+	for i := range personList {
+		flag := true
+		for j := range *pUniqueItems {
+			if personList[i].jobKey == (*pUniqueItems)[j].jobKey {
+				flag = false
+				break
+			}
+		}
+		if flag {
+			*pUniqueItems = append(*pUniqueItems, personList[i])
+		}
+	}
 	return
 }
 
@@ -208,10 +228,6 @@ func ExtractJobKey(html string) (jobItems []JobItem) {
 		jobItem := JobItem{location: location, jobKey: match[1]}
 
 		jobItems = append(jobItems, jobItem)
-	}
-
-	if len(jobItems) < 100 {
-		fmt.Println("only 99")
 	}
 
 	return
